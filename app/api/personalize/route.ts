@@ -63,25 +63,23 @@ export async function POST(req: Request) {
 const textNodes: { id: string, text: string, oldLength: number, tag: string }[] = [];
 let counter = 0;
 
-// 1. Target exactly what you want changed
+// 1. ADDED: Filter out nav, header, footer, and hidden elements
 $('h1, h2, h3, h4, p, a, button, span.btn-text, li').each((_, el) => {
   const $el = $(el);
   
-  // 2. Get the text. trim() is key to ignore empty whitespace nodes
+  // CHECK: Is this inside a nav or header?
+  const isNav = $el.closest('nav, header, footer, .navbar, .menu').length > 0;
+  if (isNav) return; // Skip these entirely
+
   const text = $el.text().trim();
   
-  // 3. Only grab it if it has content and IS NOT a container for other big tags
-  // We use .find() to see if there are nested headers/paragraphs inside
-  const hasNestedBlock = $el.find('h1, h2, h3, h4, p').length > 0;
 
-  if (text.length > 1 && !hasNestedBlock) {
+  if (text.length > 1 ) {
     const id = `node_${counter++}`;
     const tag = el.tagName.toLowerCase(); 
     const oldLength = text.length;
     
     textNodes.push({ id, text, oldLength, tag });
-    
-    // Attach the ID directly to the element
     $el.attr('data-ai-id', id);
   }
 });
@@ -90,17 +88,17 @@ $('h1, h2, h3, h4, p, a, button, span.btn-text, li').each((_, el) => {
     let promptContents: any;
 
     if (isImage) {
-      // Extract the mime type from the base64 string, default to jpeg
+     
       const mimeType = adCreative.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
       const imagePart = fileToGenerativePart(adCreative, mimeType);
       
-      // Multimodal prompt: Array with text and the image part
+     
       promptContents = [
         "Analyze this Ad Creative image and extract its marketing DNA. Focus on the offer, urgency, cta, benefits, and tone shown in the visuals and text.",
         imagePart
       ];
     } else {
-      // Standard text prompt
+     
       promptContents = `Analyze this Ad Creative and extract its marketing DNA: "${adCreative}"`;
     }
 
@@ -131,20 +129,21 @@ $('h1, h2, h3, h4, p, a, button, span.btn-text, li').each((_, el) => {
 
         LANDING PAGE NODES:
         ${JSON.stringify(textNodes)}
-        TASK :You MUST rewrite every node provided in the landing page using the ad creative and enhance rules
+        TASK :You MUST rewrite every node provided in the landing page using the node's text, the ad creative and enhance rules
       `,
       config: {
         systemInstruction: `You are a CRO Expert. Enhance the text content of the landing page to better align with the ad's strategy while preserving the original meaning and brand voice. Use the provided nodes as targets for your rewrites. Follow these rules strictly:
     ENHANCE RULES:
-    1. ALIGNMENT: Rewrites MUST reflect Brand Voice and incorporate Offer, Urgency, Benefits, and CTA from the Ad Strategy.
-    2. CHARACTER LIMIT:  newText length must be within 10% of old_leng.
-    3. HIERARCHY: 
-       - H1/H2: Use these for the Main Offer, Brand messaging and Brand voice.
-       
-       - P (Paragraphs): Use these for "Benefits" and "Urgency".
-       - A/BUTTON: Use these ONLY for the "CTA".
-    4. VARIETY: Do not repeat the same phrase. If a node is a small link (e.g. "Learn More"), keep it as a short relevant link.
-    5. RETURN: JSON modifications array with id, newText, and reasoning.`,
+    1. ALIGNMENT: Rewrites MUST reflect Brand Voice , Brand message incorporate Offer, Urgency, Benefits, and CTA from the Ad Strategy.
+    2. STRICT CHARACTER LIMIT:  newText length must be fully within the old_leng.
+    3. (Node data + ad creative) output GUIDELINES: 
+       - H1: Use these for High-Impact Main Offer, Brand Tone, Brand messaging and Brand voice
+       - H2/H3: Use these for "Urgency" ,Brand Tone, Brand messaging, Brand voice 
+       - Preserve the Brand Voice and Intent
+       - P (Paragraphs): Use these for "Brand Tone", "Benefits", "Urgency" , Brand messaging, Brand voice 
+       - A/BUTTON: Use these ONLY for the "CTA" (max 3-4 words)
+   
+    4. RETURN: JSON modifications array with id, newText, and reasoning.`,
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: "application/json",
         responseJsonSchema: zodToJsonSchema(translationSchema as any),
@@ -160,11 +159,11 @@ let mods = Array.isArray(finalData) ? finalData : (finalData.modifications || []
 mods.forEach((mod: any) => {
   const incomingText = mod.newText || mod.text;
   if (mod.id && incomingText) {
-    // Select any element that has our custom data attribute
+    
     const $target = $(`[data-ai-id="${mod.id}"]`);
     
     if ($target.length > 0) {
-      // Use .text() to replace content safely
+    
       $target.text(incomingText.trim());
     }
   }

@@ -1,65 +1,140 @@
-import Image from "next/image";
+"use client";
+import { useState, useRef } from 'react';
 
 export default function Home() {
+  const [inputs, setInputs] = useState({ ad: '', url: '' });
+  const [isImage, setIsImage] = useState(false); // Track if input is an image
+  const [output, setOutput] = useState<{personalized: string} | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle image upload and convert to Base64
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setInputs({ ...inputs, ad: reader.result as string });
+        setIsImage(true);
+      };
+      reader.readAsDataURL(file); // This triggers onloadend
+    }
+  };
+
+  const clearImage = () => {
+    setIsImage(false);
+    setInputs({ ...inputs, ad: '' });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const runPersonalization = async () => {
+    if (!inputs.ad || !inputs.url) return alert("Please provide an Ad and a URL.");
+    
+    setLoading(true);
+    try {
+      const res = await fetch('/api/personalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          adCreative: inputs.ad, 
+          landingPageUrl: inputs.url,
+          isImage // Send the flag to the backend
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setOutput(data);
+    } catch (error) {
+      console.error("Failed to personalize:", error);
+      alert("Failed to personalize the page. Check console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <main className="h-screen bg-slate-950 text-white flex flex-col">
+      <nav className="p-4 border-b border-slate-800 bg-slate-900 flex gap-4 items-end z-10">
+        <div className="flex-[2]">
+          <label className="text-[10px] font-bold text-blue-400 uppercase">Ad Creative / Goal</label>
+          <div className="flex gap-2 mt-1">
+            <input 
+              className="flex-1 bg-slate-800 border border-slate-700 p-2 rounded text-sm outline-none focus:border-blue-500 disabled:opacity-50" 
+              placeholder={isImage ? "Image uploaded successfully" : "e.g. Free trial for startup founders"}
+              value={isImage ? "Image ready for analysis 🖼️" : inputs.ad}
+              onChange={e => setInputs({...inputs, ad: e.target.value})} 
+              disabled={isImage}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            
+            {/* File Upload Button */}
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-slate-700 px-3 rounded text-xs hover:bg-slate-600 transition-colors font-semibold"
+            >
+              📷 Upload Image
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept="image/*" 
+              onChange={handleImageUpload} 
+            />
+
+            {/* Clear Image Button */}
+            {isImage && (
+              <button 
+                onClick={clearImage}
+                className="bg-red-900/40 text-red-400 px-3 rounded text-xs hover:bg-red-900 transition-colors"
+                title="Remove Image"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
-      </main>
-    </div>
+        
+        <div className="flex-1">
+          <label className="text-[10px] font-bold text-blue-400 uppercase">Target URL</label>
+          <input 
+            className="w-full bg-slate-800 border border-slate-700 p-2 rounded mt-1 text-sm outline-none focus:border-blue-500" 
+            placeholder="https://example.com"
+            value={inputs.url}
+            onChange={e => setInputs({...inputs, url: e.target.value})} 
+          />
+        </div>
+        
+        <button 
+          onClick={runPersonalization} 
+          disabled={loading} 
+          className="bg-blue-600 px-8 py-2 rounded font-bold hover:bg-blue-500 disabled:opacity-50 transition-all shadow-lg"
+        >
+          {loading ? "Optimizing..." : "Generate Variant"}
+        </button>
+      </nav>
+
+      <div className="flex-1 relative bg-slate-900">
+        {output ? (
+          <div className="w-full h-full flex flex-col">
+            <div className="p-1 text-center text-[10px] bg-blue-600 text-white uppercase font-black tracking-widest">
+              Live Personalized Variant
+            </div>
+            <iframe 
+              srcDoc={output.personalized} 
+              className="w-full h-full bg-white border-none" 
+              title="Personalized View"
+            />
+          </div>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center flex-col gap-4">
+            <div className="text-slate-500 font-medium tracking-tight">
+              {loading ? "Analyzing Landing Page Structure..." : "Enter details to see the optimized variant"}
+            </div>
+            {!loading && <div className="w-12 h-1 bg-slate-800 rounded-full" />}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }

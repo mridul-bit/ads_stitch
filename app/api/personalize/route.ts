@@ -20,7 +20,8 @@ const adAnalysisSchema = z.object({
   urgency: z.string(),
   cta: z.string(),
   benefits: z.string(),
-  tone: z.string()
+  tone: z.string(),
+  trust: z.string()
 });
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -94,7 +95,7 @@ $('h1, h2, h3, h4, p, a, button, span.btn-text, li').each((_, el) => {
       
      
       promptContents = [
-        "Analyze this Ad Creative image and extract its marketing DNA. Focus on the offer, urgency, cta, benefits, and tone shown in the visuals and text.",
+        "Analyze this Ad Creative image and extract its marketing DNA. Focus on the offer, urgency, cta, benefits,  tone  and trust (social proof, guarantees, or certifications) shown in the visuals and text.",
         imagePart
       ];
     } else {
@@ -125,6 +126,7 @@ $('h1, h2, h3, h4, p, a, button, span.btn-text, li').each((_, el) => {
         - Urgency: ${strategyJson.urgency}
         - Benefits: ${strategyJson.benefits}
         - Tone: ${strategyJson.tone}
+        - Trust: ${strategyJson.trust}
         - Targeted CTA: ${strategyJson.cta}
 
         LANDING PAGE NODES:
@@ -138,9 +140,9 @@ $('h1, h2, h3, h4, p, a, button, span.btn-text, li').each((_, el) => {
     2. STRICT CHARACTER LIMIT:  newText length must be fully within the old_leng.
     3. (Node data + ad creative) output GUIDELINES: 
        - H1: Use these for High-Impact Main Offer, Brand Tone, Brand messaging and Brand voice
-       - H2/H3: Use these for "Urgency" ,Brand Tone, Brand messaging, Brand voice 
+       - H2/H3: Use these for "Urgency", "Trust",Brand Tone, Brand messaging, Brand voice 
        - Preserve the Brand Voice and Intent
-       - P (Paragraphs): Use these for "Brand Tone", "Benefits", "Urgency" , Brand messaging, Brand voice 
+       - P (Paragraphs): Use these for "Benefits", "Urgency" ,Trust/Guarantees", Brand tone ,Brand messaging, Brand voice 
        - A/BUTTON: Use these ONLY for the "CTA" (max 3-4 words)
    
     4. RETURN: JSON modifications array with id, newText, and reasoning.`,
